@@ -13,6 +13,8 @@ import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 import play.api.libs.ws.{WSAuthScheme, WSClient}
 
+import java.net.ConnectException
+
 @ImplementedBy(classOf[HostsImpl])
 trait Hosts {
 
@@ -23,35 +25,42 @@ trait Hosts {
 }
 
 @Singleton
-class HostsImpl @Inject()(config: Configuration, client: HTTPElasticClient) extends Hosts {
+class HostsImpl @Inject()(config: Configuration, client: WSClient) extends Hosts {
 
   
-  // def clusterHealth(target: ElasticServer): Future[ElasticResponse] = {
-  //   val path = "/_cluster/health"
-  //   execute(path, "GET", None, target)
-  // }
+  def clusterHealth(target: ElasticServer): Option[Future[ElasticResponse]] = {
+    val path = "/_cluster/health"
+    for (i <- 1 to 10) {
+      try {
+          return Some(execute(path, "GET", None, target))
+      } catch {
+          case e: Exception => 
+            Console.println("Connection problems: " + e.getMessage())
+            Thread.sleep(2*i)
+      }
+    }
+    return None
+  }
 
-  // def execute[T](uri: String,
-  //                method: String,
-  //                body: Option[String] = None,
-  //                target: ElasticServer,
-  //                headers: Seq[(String, String)] = Seq()) = {
-  //   val authentication = target.host.authentication
-  //   val url = s"${target.host.name.replaceAll("/+$", "")}$uri"
+  def execute[T](uri: String,
+                 method: String,
+                 body: Option[String] = None,
+                 target: ElasticServer,
+                 headers: Seq[(String, String)] = Seq()) : Future[elastic.ElasticResponse] = {
+    val authentication = target.host.authentication
+    val url = s"${target.host.name.replaceAll("/+$", "")}$uri"
 
-  //   val mergedHeaders = headers ++ target.headers
+    val mergedHeaders = headers ++ target.headers
 
-  //   val request =
-  //     authentication.foldLeft(client.url(url).withMethod(method).withHttpHeaders(mergedHeaders: _*)) {
-  //     case (request, auth) =>
-  //       request.withAuth(auth.username, auth.password, WSAuthScheme.BASIC)
-  //   }
-  //   Console.println(s"Executing req: $request, $authentication")
+    val request =
+      authentication.foldLeft(client.url(url).withMethod(method).withHttpHeaders(mergedHeaders: _*)) {
+      case (request, auth) =>
+        request.withAuth(auth.username, auth.password, WSAuthScheme.BASIC)
+    }
+    Console.println(s"Executing req: $request, $authentication")
+    body.fold(request)(request.withBody((_))).execute().map { response => ElasticResponse(response)}
+  }
 
-  //   body.fold(request)(request.withBody((_))).execute().map { response =>
-  //     ElasticResponse(response)
-  //   }
-  // }
 
   val hosts: Map[String, Host] = Try(config.underlying.getConfigList("hosts").asScala.map(Configuration(_))) match {
     case scala.util.Success(hostsConf) => hostsConf.map { hostConf =>
@@ -68,28 +77,19 @@ class HostsImpl @Inject()(config: Configuration, client: HTTPElasticClient) exte
       val creds = Host(host, Some(ESAuth(username, password)), headersWhitelist)
       val creds2 = Host(host, Some(ESAuth(username2, password2)), headersWhitelist)      
       
-      // val resp = clusterHealth(ElasticServer(creds, List())).map {
-      //   case elastic.Success(status, tokens) => creds
-      //   case elastic.Error(status, error) => None
-      // }
-      // val resp2 = clusterHealth(ElasticServer(creds2, List())).map {
-      //   case elastic.Success(status, tokens) => creds2
-      //   case elastic.Error(status, error) => None
-      // }
 
-      // Console.println(s"HOSTImpl $username, $password")
-      // Console.println(s"resp $resp")
-      // Console.println(s"resp2 $resp2")
-
-
-    val resp = client.clusterHealth(ElasticServer(creds, List())).map {
-      case elastic.Success(status, health) => Some(creds)
-      case elastic.Error(status, error) => None
+    val resp = clusterHealth(ElasticServer(creds, List())) match {
+      case Some(v) => v.map {
+        case elastic.Success(status, health) => Some(creds)
+        case elastic.Error(status, error) => None
+     }
     }
 
-    val resp2 = client.clusterHealth(ElasticServer(creds2, List())).map {
-      case elastic.Success(status, health) => Some(creds)
-      case elastic.Error(status, error) => None
+    val resp2 = clusterHealth(ElasticServer(creds2, List())) match {
+      case Some(v) => v.map {
+        case elastic.Success(status, health) => Some(creds)
+        case elastic.Error(status, error) => None
+      }
     }
     val r = Await.result(resp, 10000.millis)
     val r2 = Await.result(resp2, 10000.millis)
