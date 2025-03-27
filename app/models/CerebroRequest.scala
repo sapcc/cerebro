@@ -54,7 +54,11 @@ object CerebroRequest {
         ElasticServer(host.copy(authentication = a.orElse(requestAuth)), headers)
       case None => ElasticServer(Host(hostName, requestAuth))
     }
-
+    Console.println(s"CerebroRequest:")
+    Console.println(s"  hostName: $hostName")
+    Console.println(s"  body: $body")
+    Console.println(s"  server: $server")
+    Console.println(s"  requestAuth: $requestAuth")
     CerebroRequest(server, body, request.user)
   }
 
