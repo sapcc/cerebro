@@ -1,0 +1,3 @@
+package exceptions
+
+object NoAuthenticatedUsersException extends Exception

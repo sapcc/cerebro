@@ -8,7 +8,7 @@ import elastic.HTTPElasticClient._
 import models.ElasticServer
 import play.api.libs.json._
 import play.api.libs.ws.{WSAuthScheme, WSClient}
-
+import exceptions.{NoAuthenticatedUsersException}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -306,11 +306,11 @@ class HTTPElasticClient @Inject()(client: WSClient) extends ElasticClient {
       case _: JsString => NdJsonContentType // if it's not a json, it is assumed that bulk or multi-search API is used
       case _ => JsonContentType
     }.toSeq
-    
     val body = data.map {
       case JsString(value) => value // needed to handle non valid json requests(multisearch, bulk...)
       case v: JsValue => v.toString
     }
+    Console.println("Making a request: " + s"/${path}" + " " + method + " " + body + " " + target + " " + headers)
     execute(s"/${path}", method, body, target, headers)
   }
 
@@ -319,20 +319,36 @@ class HTTPElasticClient @Inject()(client: WSClient) extends ElasticClient {
                            body: Option[String] = None,
                            target: ElasticServer,
                            headers: Seq[(String, String)] = Seq()) = {
-    val authentication = target.host.authentication
+    val authenticationList = target.host.authentication
+    Console.println("target= " + target)
+    Console.println("authentication= " + authenticationList)
     val url = s"${target.host.name.replaceAll("/+$", "")}$uri"
 
     val mergedHeaders = headers ++ target.headers
+    Console.println("mergedHeaders= " + mergedHeaders)
+    val resp = List.empty[ElasticResponse]
+    authenticationList.foreach{ authentication =>
+      val request =
+        authentication.foldLeft(client.url(url).withMethod(method).withHttpHeaders(mergedHeaders: _*)) {
+        case (request, auth) =>
+          request.withAuth(auth.username, auth.password, WSAuthScheme.BASIC)
+      }
 
-    val request =
-      authentication.foldLeft(client.url(url).withMethod(method).withHttpHeaders(mergedHeaders: _*)) {
-      case (request, auth) =>
-        request.withAuth(auth.username, auth.password, WSAuthScheme.BASIC)
+      body.fold(request)(request.withBody((_))).execute().map { response =>
+        resp :+ ElasticResponse(response)
+      }
     }
-
-    body.fold(request)(request.withBody((_))).execute().map { response =>
-      ElasticResponse(response)
+    
+    Console.println("resp= " + resp)
+    val result = (resp) match {
+      case List(Success(status, body), _) => Some(Success(status, body))
+      case List(_, Success(status, body)) => Some(Success(status, body))
+      case List(Error(_,_), Error(_,_)) => None
+      case _ => None
     }
+    Console.println("result= " + result)
+    result.getOrElse(throw NoAuthenticatedUsersException)
+    
   }
 
   // FIXME: ES > 5.X does not support indices with special characters, so this could be removed

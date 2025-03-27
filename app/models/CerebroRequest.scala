@@ -37,14 +37,16 @@ case class CerebroRequest(val target: ElasticServer, body: JsValue, val user: Op
 object CerebroRequest {
 
   def apply(request: AuthRequest[JsValue], hosts: Hosts): CerebroRequest = {
+    Console.println("hosts = " + hosts)
+    Console.println("body = " + body)
     val body = request.body
-
     val hostName = (body \ "host").asOpt[String].getOrElse(throw MissingTargetHostException)
     val username = (body \ "username").asOpt[String]
     val password = (body \ "password").asOpt[String]
+    Console.println("CerebroRequest: " + username + " " + password)
 
     val requestAuth = (username, password) match {
-      case (Some(u), Some(p)) => Some(ESAuth(u, p))
+      case (Some(u), Some(p)) => Some(List(ESAuth(u, p)))
       case _ => None
     }
 
