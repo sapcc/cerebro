@@ -23,3 +23,6 @@ server.pid
 activator-*.sbt
 node_modules
 cerebro.db
+
+application.conf
+ldap-env
