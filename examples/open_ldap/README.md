@@ -1,3 +1,8 @@
+
+# Reference 
+
+https://opensearch.org/docs/latest/install-and-configure/install-opensearch/docker/#sample-docker-composeyml
+
 # How to configure open ldap authentication
 
 In this tutorial we are focusing in LDAP authentication without validating if the user belongs to a group.
