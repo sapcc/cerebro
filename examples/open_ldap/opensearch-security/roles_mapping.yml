@@ -1,0 +1,41 @@
+# # In this file users, backendroles and hosts can be mapped to Security roles.
+# # Permissions for OpenSearch roles are configured in roles.yml
+
+_meta:
+  type: "rolesmapping"
+  config_version: 2
+
+# # Define your roles mapping here
+
+# ## Demo roles mapping
+
+adminrole:
+  reserved: false
+  users:
+  -  "admin"
+  -  "data"
+
+data:
+  reserved: false
+  users:
+  - "data"
+  - "data2"
+
+all_access:
+  reserved: false
+  users:
+  - "admin"
+  - "data"
+  description: "Maps admin to all_access"
+
+kibana_server:
+  reserved: true
+  users:
+  - "kibanaserver"
+
+kibana_user:
+  reserved: false
+  backend_roles:
+  - "kibanauser"
+  description: "Maps kibanauser to kibana_user"
+

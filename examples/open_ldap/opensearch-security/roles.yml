@@ -1,0 +1,55 @@
+_meta:
+  type: "roles"
+  config_version: 2
+
+# Restrict users so they can only view visualization and dashboard on OpenSearchDashboards
+kibana_read_only:
+  reserved: true
+
+# The security REST API access role is used to assign specific users access to change the security settings through the REST API.
+security_rest_api_access:
+  reserved: true
+
+data:
+  reserved: false
+  cluster_permissions:
+  - "cluster_monitor"
+  - "cluster_composite_ops"
+  - "cluster:admin/ingest/pipeline/put"
+  - "cluster:admin/ingest/pipeline/get"
+  - "indices:admin/template/get"
+  - "cluster_manage_index_templates"
+  - "cluster:admin/opensearch/ml/predict"
+  index_permissions:
+  - index_patterns:
+    - "*"
+    allowed_actions:
+    - "indices:admin/get"
+    - "indices:admin/template/get"
+    - "indices:admin/template/put"
+    - "indices:admin/mapping/put"
+    - "indices:admin/create"
+    - "indices:data/write/bulk*"
+    - "indices:data/write/index"
+  tenant_permissions:
+  - tenant_patterns:
+    - "global_tenant"
+    - "admin_tenant"
+    allowed_actions:
+    - "*"
+
+adminrole:
+  reserved: false
+  hidden: false
+  cluster_permissions:
+  - "*"
+  index_permissions:
+  - index_patterns:
+    - "*"
+    allowed_actions:
+    - "*"
+  tenant_permissions:
+  - tenant_patterns:
+    - "global_tenant"
+    allowed_actions:
+    - "kibana_all_write"

@@ -1,0 +1,25 @@
+opendistro_security.restapi.roles_enabled: [“all_access”, “security_rest_api_access”]
+plugins.security.disabled: false
+opensearch_security.enabled: false  
+
+
+plugins.security.ssl.transport.pemcert_filepath: node1.pem
+plugins.security.ssl.transport.pemkey_filepath: node1-key.pem
+plugins.security.ssl.transport.pemtrustedcas_filepath: root-ca.pem
+plugins.security.ssl.transport.enforce_hostname_verification: false
+plugins.security.ssl.http.enabled: true
+plugins.security.ssl.http.pemcert_filepath: node1.pem
+plugins.security.ssl.http.pemkey_filepath: node1-key.pem
+plugins.security.ssl.http.pemtrustedcas_filepath: root-ca.pem
+plugins.security.allow_default_init_securityindex: true
+plugins.security.authcz.admin_dn:
+  - CN=,OU=SAP,O=SAP,L=B,ST=B,C=DE
+plugins.security.nodes_dn:
+  - 'CN=,OU=SAP,O=SAP,L=B,ST=B,C=DE'
+plugins.security.audit.type: internal_opensearch
+plugins.security.enable_snapshot_restore_privilege: true
+plugins.security.check_snapshot_restore_write_privileges: true
+plugins.security.restapi.roles_enabled: ["all_access", "security_rest_api_access"]
+cluster.routing.allocation.disk.threshold_enabled: false
+opendistro_security.audit.config.disabled_rest_categories: NONE
+opendistro_security.audit.config.disabled_transport_categories: NONE
