@@ -11,7 +11,12 @@ import play.api.Configuration
 import elastic.{HTTPElasticClient, ElasticResponse, Error, Success}
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
-import play.api.libs.ws.{WSAuthScheme, WSClient}
+import java.net.ConnectException
+
+import akka.actor.ActorSystem
+import akka.stream.Materializer
+import play.api.libs.ws._
+import scala.concurrent.{ExecutionContext, Future}
 
 import java.net.ConnectException
 
@@ -25,28 +30,22 @@ trait Hosts {
 }
 
 @Singleton
-class HostsImpl @Inject()(config: Configuration, client: WSClient) extends Hosts {
+class HostsImpl @Inject()(config: Configuration, client: WSClient)(implicit system: ActorSystem, mat: Materializer) extends Hosts {
 
   
-  def clusterHealth(target: ElasticServer): Option[Future[ElasticResponse]] = {
-    val path = "/_cluster/health"
-    for (i <- 1 to 10) {
-      try {
-          return Some(execute(path, "GET", None, target))
-      } catch {
-          case e: Exception => 
-            Console.println("Connection problems: " + e.getMessage())
-            Thread.sleep(2*i)
-      }
+  def fetchWithRetry(request: WSRequest, retries: Int = 10, delay: FiniteDuration = 2.seconds): Future[WSResponse] = {
+    request.execute().recoverWith {
+      case ex if retries > 0 =>
+        println(s"Request failed: ${ex.getMessage}. Retrying in ${delay.toSeconds} seconds... ($retries retries left)")
+        akka.pattern.after(delay, system.scheduler)(fetchWithRetry(request, retries - 1, delay))
     }
-    return None
   }
 
   def execute[T](uri: String,
                  method: String,
                  body: Option[String] = None,
                  target: ElasticServer,
-                 headers: Seq[(String, String)] = Seq()) : Future[elastic.ElasticResponse] = {
+                 headers: Seq[(String, String)] = Seq()) : Future[Option[elastic.ElasticResponse]] = {
     val authentication = target.host.authentication
     val url = s"${target.host.name.replaceAll("/+$", "")}$uri"
 
@@ -58,7 +57,14 @@ class HostsImpl @Inject()(config: Configuration, client: WSClient) extends Hosts
         request.withAuth(auth.username, auth.password, WSAuthScheme.BASIC)
     }
     Console.println(s"Executing req: $request, $authentication")
-    body.fold(request)(request.withBody((_))).execute().map { response => ElasticResponse(response)}
+    fetchWithRetry(body.fold(request)(request.withBody((_))))
+    .map {case response => Some(ElasticResponse(response)) }
+    .recover {case ex => None} 
+  }
+
+  def clusterHealth(target: ElasticServer): Future[Option[ElasticResponse]] = {
+    val path = "/_cluster/health"
+    execute(path, "GET", None, target)
   }
 
 
@@ -78,18 +84,20 @@ class HostsImpl @Inject()(config: Configuration, client: WSClient) extends Hosts
       val creds2 = Host(host, Some(ESAuth(username2, password2)), headersWhitelist)      
       
 
-    val resp = clusterHealth(ElasticServer(creds, List())) match {
-      case Some(v) => v.map {
+    val resp = clusterHealth(ElasticServer(creds, List())).map {
+      case Some(response) => (response) match {
         case elastic.Success(status, health) => Some(creds)
         case elastic.Error(status, error) => None
      }
+      case None => None
     }
 
-    val resp2 = clusterHealth(ElasticServer(creds2, List())) match {
-      case Some(v) => v.map {
-        case elastic.Success(status, health) => Some(creds)
+    val resp2 = clusterHealth(ElasticServer(creds2, List())).map {
+      case Some(response) => (response) match {
+        case elastic.Success(status, health) => Some(creds2)
         case elastic.Error(status, error) => None
-      }
+     }
+      case None => None
     }
     val r = Await.result(resp, 10000.millis)
     val r2 = Await.result(resp2, 10000.millis)
@@ -98,11 +106,13 @@ class HostsImpl @Inject()(config: Configuration, client: WSClient) extends Hosts
     Console.println(s"resp2 $resp2")
     Console.println(s"r $r")
     Console.println(s"r2 $r2")
-    (r, r2) match {
+    val res = (r, r2) match {
       case (Some(c), _) => name -> c
       case (_, Some(c2)) => name -> c2
       case (None, None) => name -> Host(host, None, headersWhitelist)
     }
+    Console.println("result: " + res)
+    res
     }.toMap
     case Failure(_) => Map()
   }
