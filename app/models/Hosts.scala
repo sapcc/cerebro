@@ -33,10 +33,10 @@ trait Hosts {
 class HostsImpl @Inject()(config: Configuration, client: WSClient)(implicit system: ActorSystem, mat: Materializer) extends Hosts {
 
   
-  def fetchWithRetry(request: WSRequest, retries: Int = 10, delay: FiniteDuration = 2.seconds): Future[WSResponse] = {
+  def fetchWithRetry(request: WSRequest, retries: Int = 20, delay: FiniteDuration = 10.seconds): Future[WSResponse] = {
     request.execute().recoverWith {
       case ex if retries > 0 =>
-        println(s"Request failed: ${ex.getMessage}. Retrying in ${delay.toSeconds} seconds... ($retries retries left)")
+        println(s"Request ${request} failed: ${ex}, ${ex.getMessage}. Retrying in ${delay.toSeconds} seconds... ($retries retries left)")
         akka.pattern.after(delay, system.scheduler)(fetchWithRetry(request, retries - 1, delay))
     }
   }
@@ -74,45 +74,29 @@ class HostsImpl @Inject()(config: Configuration, client: WSClient)(implicit syst
       val name = hostConf.getOptional[String]("name").getOrElse(host)
       val headersWhitelist = hostConf.getOptional[Seq[String]](path = "headers-whitelist")  .getOrElse(Seq.empty[String])
       
-      
-      val username = hostConf.getOptional[String]("auth.username").getOrElse("")
-      val password = hostConf.getOptional[String]("auth.password").getOrElse("")
-      val username2 = hostConf.getOptional[String]("auth2.username").getOrElse("")
-      val password2 = hostConf.getOptional[String]("auth2.password").getOrElse("")
+      val res = for (name <- List("auth", "auth2")) {
+        val username = hostConf.getOptional[String](s"$name.username").getOrElse("")
+        val password = hostConf.getOptional[String](s"$name.password").getOrElse("")
+        val creds = Host(host, Some(ESAuth(username, password)), headersWhitelist)
+        
+        val resp = clusterHealth(ElasticServer(creds, List())).map {
+          case Some(response) => (response) match {
+            case elastic.Success(status, health) => Some(creds)
+            case elastic.Error(status, error) => None
+        }
+        case None => None
+      }
 
-      val creds = Host(host, Some(ESAuth(username, password)), headersWhitelist)
-      val creds2 = Host(host, Some(ESAuth(username2, password2)), headersWhitelist)      
-      
-
-    val resp = clusterHealth(ElasticServer(creds, List())).map {
-      case Some(response) => (response) match {
-        case elastic.Success(status, health) => Some(creds)
-        case elastic.Error(status, error) => None
-     }
-      case None => None
+      Console.println(s"resp $resp")
+      name -> creds
     }
 
-    val resp2 = clusterHealth(ElasticServer(creds2, List())).map {
-      case Some(response) => (response) match {
-        case elastic.Success(status, health) => Some(creds2)
-        case elastic.Error(status, error) => None
-     }
-      case None => None
-    }
-    val r = Await.result(resp, 10000.millis)
-    val r2 = Await.result(resp2, 10000.millis)
-
-    Console.println(s"resp $resp")
-    Console.println(s"resp2 $resp2")
-    Console.println(s"r $r")
-    Console.println(s"r2 $r2")
-    val res = (r, r2) match {
-      case (Some(c), _) => name -> c
-      case (_, Some(c2)) => name -> c2
-      case (None, None) => name -> Host(host, None, headersWhitelist)
-    }
     Console.println("result: " + res)
-    res
+    val test = 1
+    (test) match {
+      case 1 => name -> Host(host, None, headersWhitelist)
+      case 2 => name -> Host(host, None, headersWhitelist)
+    }
     }.toMap
     case Failure(_) => Map()
   }
