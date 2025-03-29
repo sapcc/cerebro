@@ -1,7 +1,7 @@
-version: "3"
 services:
   cerebro:
     image: cerebro
+    container_name: cerebro
     environment:
       - AUTH_TYPE=ldap
       - LDAP_URL=ldap://ldap:389
@@ -15,6 +15,11 @@ services:
       - 9000:9000
     networks:
       - opensearch-net
+    volumes:
+      - ./certs/gen-keystore.sh:/opt/cerebro/certs/gen-keystore.sh
+      - ./certs/root-ca.pem:/opt/cerebro/certs/root-ca.pem
+      - ./certs/admin.pem:/opt/cerebro/certs/admin.pem
+      - ./certs/node1.pem:/opt/cerebro/certs/node1.pem
   open_ldap:
     image: osixia/openldap:1.5.0
     container_name: ldap
@@ -45,8 +50,10 @@ services:
         hard: 65536
     volumes:
       - opensearch-data1:/usr/share/opensearch/data # Creates volume called opensearch-data1 and mounts it to the container
+      - ./opensearch/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
       - ./opensearch-security/:/usr/share/opensearch/config/opensearch-security
       - ./certs/root-ca.pem:/usr/share/opensearch/config/root-ca.pem
+      - ./certs/gen-keystore.sh:/usr/share/opensearch/config/gen-keystore.sh
       - ./certs/admin.pem:/usr/share/opensearch/config/admin.pem
       - ./certs/admin-key.pem:/usr/share/opensearch/config/admin-key.pem
       - ./certs/node1.pem:/usr/share/opensearch/config/node1.pem
@@ -76,8 +83,10 @@ services:
         hard: 65536
     volumes:
       - opensearch-data2:/usr/share/opensearch/data
+      - ./opensearch/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
       - ./opensearch-security/:/usr/share/opensearch/config/opensearch-security
       - ./certs/root-ca.pem:/usr/share/opensearch/config/root-ca.pem
+      - ./certs/gen-keystore.sh:/usr/share/opensearch/config/gen-keystore.sh
       - ./certs/admin.pem:/usr/share/opensearch/config/admin.pem
       - ./certs/admin-key.pem:/usr/share/opensearch/config/admin-key.pem
       - ./certs/node1.pem:/usr/share/opensearch/config/node1.pem
