@@ -26,3 +26,7 @@ cerebro.db
 
 application.conf
 ldap-env
+examples/open_ldap/certs/*.pem
+examples/open_ldap/certs/*.csr
+examples/open_ldap/certs/*.ext
+examples/open_ldap/certs/*.srl
