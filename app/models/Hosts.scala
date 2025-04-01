@@ -20,6 +20,7 @@ import play.api.libs.ws._
 import scala.concurrent.{ExecutionContext, Future}
 
 import java.net.ConnectException
+import play.api.Logger
 
 @ImplementedBy(classOf[HostsImpl])
 trait Hosts {
@@ -32,14 +33,15 @@ trait Hosts {
 
 @Singleton
 class HostsImpl @Inject()(config: Configuration, client: WSClient)(implicit system: ActorSystem, mat: Materializer) extends Hosts {
+  private val log = Logger("application")
 
   def fetch(request: WSRequest, retries: Int = 3, delay: FiniteDuration = 5.seconds): Future[WSResponse] = {
     request.execute().flatMap { response =>
       if (response.status == 200) {
-        Console.println(s"OK Response ${response}")
+        log.info(s"OK Response")
         Future.successful(response) // Return response if status is 200
       } else {
-        Console.println(s"Received status ${response.status}, ${response}")
+        log.warn(s"Received status ${response.status}, ${response.body}")
         Future.failed(new Exception(s"Failed after retries. Last status: ${response.status}"))
       }
     }
@@ -79,14 +81,13 @@ class HostsImpl @Inject()(config: Configuration, client: WSClient)(implicit syst
       val name = hostConf.getOptional[String]("name").getOrElse(host)
       val headersWhitelist = hostConf.getOptional[Seq[String]](path = "headers-whitelist").getOrElse(Seq.empty[String])
       var i = 0
-      var okCreds = List.empty[Option[models.Host]]
-      while (i < 10 && okCreds.flatten.isEmpty) {
-        i += 1
-        okCreds = (for (name <- List("auth", "auth2")) yield {
-          val username = hostConf.getOptional[String](s"$name.username").getOrElse("")
-          val password = hostConf.getOptional[String](s"$name.password").getOrElse("")
+      var attemptedCredentials = List.empty[Option[models.Host]]
+      while (i < 10 && attemptedCredentials.flatten.isEmpty) {
+        attemptedCredentials = (for (failoverAuth <- List("auth", "auth2")) yield {
+          log.info(s"Testing credentials provided in block ${failoverAuth}")
+          val username = hostConf.getOptional[String](s"$failoverAuth.username").getOrElse("")
+          val password = hostConf.getOptional[String](s"$failoverAuth.password").getOrElse("")
           val creds = Host(host, Some(ESAuth(username, password)), headersWhitelist)
-          Console.println(s"iteration = ${i} name: ${name}")
           Await.result(clusterHealth(ElasticServer(creds, List())).map {
             case Some(response) => (response) match {
                 case elastic.Success(status, health) => Some(creds)
@@ -95,11 +96,20 @@ class HostsImpl @Inject()(config: Configuration, client: WSClient)(implicit syst
             case None => None
           }, Duration.Inf)
         })
+        log.info("Backing off for 5s...")
         Thread.sleep(5000)
+        log.info("Retrying credentials...")
+        i += 1
       }
-      // If there are no valid creds this will fail with with a NoSuchElementException. 
-      name -> okCreds.flatten.head
-      
+      try {
+        val okCreds = attemptedCredentials.flatten.head
+        log.info(s"Found successful credentials; will use ${okCreds.authentication.get.username}.")
+        name -> okCreds
+      } catch {
+        case e => 
+        log.error(s"Missing credentials: ${e.getMessage}", throw MissingHostsCredentials(s"None of the provided credentials worked for '${name}', on '${host}'"))
+        name -> Host(host, Some(ESAuth("MISSING_USERNAME","MISSING_PASSWORD")), headersWhitelist)
+      }
     }.toMap
     case Failure(_) => Map()
   }
