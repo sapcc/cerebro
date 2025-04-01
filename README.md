@@ -15,22 +15,14 @@ cerebro needs Java 11 or newer to run.
 - Run bin/cerebro(or bin/cerebro.bat if on Windows)
 - Access on http://localhost:9000
 
-### Chocolatey (Windows)
+### Docker compose
 
-You can install `cerebro` using [Chocolatey](https://chocolatey.org/):
+- Install Docker compose
+- Spin up a running OpenSearch cluster with node(s) and a dashboard running in a network "net1" (or possibly on the host network).
+- Spin up a built image of this repository running in the same network "net1".
 
-```sh
-choco install cerebro-es
-```
+> The examples in this directory, at the moment, do not contain end-2-end setup with an OpenSearch cluster!
 
-Package creates windows service ```cerebro```.
-Access on http://localhost:9000
-
-### Docker
-
-You can find the official docker images in the official [docker hub repo](https://hub.docker.com/r/lmenezes/cerebro/).
-
-Visit [cerebro-docker](https://github.com/lmenezes/cerebro-docker) for further information. 
 
 ### Configuration
 
