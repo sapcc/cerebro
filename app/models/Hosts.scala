@@ -1,7 +1,8 @@
 package models
 
 import javax.inject.Singleton
-
+import java.util.NoSuchElementException
+import exceptions.{MissingHostsCredentials}
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
@@ -32,22 +33,15 @@ trait Hosts {
 @Singleton
 class HostsImpl @Inject()(config: Configuration, client: WSClient)(implicit system: ActorSystem, mat: Materializer) extends Hosts {
 
-  // We will retry this 2^{retries} -1 times. This follows from the fact that we split the recursion into two equal parts, and must thus traverse the full recursion tree in the worst-case. E.g. for retries=3->7, 4->15, 5->31.
-  def fetchWithRetry(request: WSRequest, retries: Int = 3, delay: FiniteDuration = 5.seconds): Future[WSResponse] = {
+  def fetch(request: WSRequest, retries: Int = 3, delay: FiniteDuration = 5.seconds): Future[WSResponse] = {
     request.execute().flatMap { response =>
       if (response.status == 200) {
+        Console.println(s"OK Response ${response}")
         Future.successful(response) // Return response if status is 200
-      } else if (retries > 0) {
-        println(s"Received status ${response.status}. Retrying in ${delay.toSeconds} seconds... (${retries -1} retries left)")
-        akka.pattern.after(delay, system.scheduler)(fetchWithRetry(request, retries - 1, delay))
       } else {
+        Console.println(s"Received status ${response.status}, ${response}")
         Future.failed(new Exception(s"Failed after retries. Last status: ${response.status}"))
       }
-    }
-    .recoverWith {
-      case ex if retries > 0 =>
-        println(s"Request ${request} failed: ${ex}, ${ex.getMessage}. Retrying in ${delay.toSeconds} seconds... (${retries-1} retries left)")
-        akka.pattern.after(delay, system.scheduler)(fetchWithRetry(request, retries - 1, delay))
     }
   }
 
@@ -68,7 +62,7 @@ class HostsImpl @Inject()(config: Configuration, client: WSClient)(implicit syst
           request.withAuth(auth.username, auth.password, WSAuthScheme.BASIC).withHttpHeaders("WWW-Authenticate" -> "Basic")
         }
     }
-    fetchWithRetry(body.fold(request)(request.withBody((_))))
+    fetch(body.fold(request)(request.withBody((_))))
     .map {case response => Some(ElasticResponse(response)) }
     .recover {case ex => None}
   }
@@ -84,23 +78,28 @@ class HostsImpl @Inject()(config: Configuration, client: WSClient)(implicit syst
       val host = hostConf.getOptional[String]("host").get
       val name = hostConf.getOptional[String]("name").getOrElse(host)
       val headersWhitelist = hostConf.getOptional[Seq[String]](path = "headers-whitelist").getOrElse(Seq.empty[String])
-      
-      val credentials = for (name <- List("auth", "auth2")) yield {
-        val username = hostConf.getOptional[String](s"$name.username").getOrElse("")
-        val password = hostConf.getOptional[String](s"$name.password").getOrElse("")
-        val creds = Host(host, Some(ESAuth(username, password)), headersWhitelist)
-
-        Await.result(clusterHealth(ElasticServer(creds, List())).map {
-          case Some(response) => (response) match {
-              case elastic.Success(status, health) => Some(creds)
-              case elastic.Error(status, error) => None
-          }
-          case None => None
-        }, Duration.Inf)
+      var i = 0
+      var okCreds = List.empty[Option[models.Host]]
+      while (i < 10 && okCreds.flatten.isEmpty) {
+        i += 1
+        okCreds = (for (name <- List("auth", "auth2")) yield {
+          val username = hostConf.getOptional[String](s"$name.username").getOrElse("")
+          val password = hostConf.getOptional[String](s"$name.password").getOrElse("")
+          val creds = Host(host, Some(ESAuth(username, password)), headersWhitelist)
+          Console.println(s"iteration = ${i} name: ${name}")
+          Await.result(clusterHealth(ElasticServer(creds, List())).map {
+            case Some(response) => (response) match {
+                case elastic.Success(status, health) => Some(creds)
+                case elastic.Error(status, error) => None
+            }
+            case None => None
+          }, Duration.Inf)
+        })
+        Thread.sleep(5000)
       }
       // If there are no valid creds this will fail with with a NoSuchElementException. 
-      val okCreds = credentials.flatten.head
-      name -> okCreds
+      name -> okCreds.flatten.head
+      
     }.toMap
     case Failure(_) => Map()
   }
