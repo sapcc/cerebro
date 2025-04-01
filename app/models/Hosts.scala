@@ -80,16 +80,27 @@ class HostsImpl @Inject()(config: Configuration, client: WSClient)(implicit syst
 
 
   val hosts: Map[String, Host] = Try(config.underlying.getConfigList("hosts").asScala.map(Configuration(_))) match {
-    case Success(hostsConf) => hostsConf.map { hostConf =>
+    case scala.util.Success(hostsConf) => hostsConf.map { hostConf =>
       val host = hostConf.getOptional[String]("host").get
       val name = hostConf.getOptional[String]("name").getOrElse(host)
-      val username = hostConf.getOptional[String]("auth.username")
-      val password = hostConf.getOptional[String]("auth.password")
-      val headersWhitelist = hostConf.getOptional[Seq[String]](path = "headers-whitelist")  .getOrElse(Seq.empty[String])
-      (username, password) match {
-        case (Some(username), Some(password)) => name -> Host(host, Some(ESAuth(username, password)), headersWhitelist)
-        case _ => name -> Host(host, None, headersWhitelist)
+      val headersWhitelist = hostConf.getOptional[Seq[String]](path = "headers-whitelist").getOrElse(Seq.empty[String])
+      
+      val credentials = for (name <- List("auth", "auth2")) yield {
+        val username = hostConf.getOptional[String](s"$name.username").getOrElse("")
+        val password = hostConf.getOptional[String](s"$name.password").getOrElse("")
+        val creds = Host(host, Some(ESAuth(username, password)), headersWhitelist)
+
+        Await.result(clusterHealth(ElasticServer(creds, List())).map {
+          case Some(response) => (response) match {
+              case elastic.Success(status, health) => Some(creds)
+              case elastic.Error(status, error) => None
+          }
+          case None => None
+        }, Duration.Inf)
       }
+      // If there are no valid creds this will fail with with a NoSuchElementException. 
+      val okCreds = credentials.flatten.head
+      name -> okCreds
     }.toMap
     case Failure(_) => Map()
   }
