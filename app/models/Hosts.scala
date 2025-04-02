@@ -96,9 +96,11 @@ class HostsImpl @Inject()(config: Configuration, client: WSClient)(implicit syst
             case None => None
           }, Duration.Inf)
         })
-        log.info("Backing off for 5s...")
-        Thread.sleep(5000)
-        log.info("Retrying credentials...")
+        if (attemptedCredentials.flatten.isEmpty) {
+          log.info("Backing off for 5s...")
+          Thread.sleep(5000)
+          log.info("Retrying credentials...")
+        }
         i += 1
       }
       try {
