@@ -1,6 +1,3 @@
-# syntax=docker/dockerfile:1.7-labs
-
-#FROM --platform=linux/amd64 keppel.eu-de-1.cloud.sap/ccloud-dockerhub-mirror/library/openjdk:11-jdk-slim as builder
 FROM --platform=linux/amd64 keppel.eu-de-1.cloud.sap/ccloud-dockerhub-mirror/library/openjdk:11-jdk-slim as builder
 LABEL source_repository="https://github.com/sapcc/cerebro"
 
@@ -12,14 +9,13 @@ RUN cd /
 RUN curl -fL https://github.com/coursier/coursier/releases/download/v2.1.23/cs-x86_64-pc-linux.gz | gzip -d > cs && chmod +x cs
 RUN ./cs setup -y
 
-COPY --exclude=application.conf  --exclude=Dockerfile . cerebro
+COPY . cerebro
 RUN . ~/.profile && cd /cerebro && sbt universal:packageZipTarball
 RUN cp /cerebro/target/universal/cerebro-${CEREBRO_VERSION}.tgz /opt
 RUN mkdir -p /opt/cerebro/logs
 RUN tar xzvf /opt/cerebro-${CEREBRO_VERSION}.tgz --strip-components 1 -C /opt/cerebro \
     && sed -i '/<appender-ref ref="FILE"\/>/d' /opt/cerebro/conf/logback.xml
 
-#FROM --platform=linux/amd64 keppel.eu-de-1.cloud.sap/ccloud-dockerhub-mirror/library/openjdk:11-jdk-slim
 FROM --platform=linux/amd64 keppel.eu-de-1.cloud.sap/ccloud-dockerhub-mirror/library/sapmachine:11-jdk-ubuntu
 LABEL source_repository="https://github.com/sapcc/cerebro"
 
