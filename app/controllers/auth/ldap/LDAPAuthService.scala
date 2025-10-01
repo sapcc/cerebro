@@ -21,6 +21,8 @@ class LDAPAuthService @Inject()(globalConfig: Configuration) extends AuthService
     val props = new Hashtable[String, String]()
     props.put(Context.SECURITY_PRINCIPAL, config.userTemplate.format(username, config.baseDN))
     props.put(Context.SECURITY_CREDENTIALS, password)
+   
+    log.debug(s"LDAP connection props: $props")
 
     try {
       LdapCtxFactory.getLdapCtxInstance(config.url, props)
@@ -44,6 +46,7 @@ class LDAPAuthService @Inject()(globalConfig: Configuration) extends AuthService
     val controls = new SearchControls()
     controls.setSearchScope(SearchControls.SUBTREE_SCOPE)
     try {
+      log.debug(s"LDAP group membership connection props: $props") 
       val context = LdapCtxFactory.getLdapCtxInstance(config.url, props)
       val search = context.search(groupConfig.baseDN,s"(& (${groupConfig.userAttr}=$user)(${groupConfig.group}))", controls)
       context.close()

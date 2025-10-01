@@ -22,7 +22,7 @@ LABEL source_repository="https://github.com/sapcc/cerebro"
 
 COPY --from=builder /opt/cerebro /opt/cerebro
 RUN apt-get update && apt upgrade -y && apt-get install -y curl
-RUN apt-get install -y vim-tiny openssl traceroute
+RUN apt-get install -y vim-tiny openssl traceroute ldap-utils
 RUN addgroup -gid 998 cerebro \
     && adduser -q --system --no-create-home --disabled-login -gid 998 -uid 998 cerebro \
     && chown -R root:root /opt/cerebro \
