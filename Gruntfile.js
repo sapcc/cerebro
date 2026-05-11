@@ -68,15 +68,6 @@ module.exports = function(grunt) {
         dest: 'public/css/app.css'
       },
     },
-    jshint: {
-      cerebro: {
-        src: [
-          'src/app/components/*/*.js',
-          'src/app/shared/*.js',
-          'src/app/shared/*/*.js'
-        ]
-      }
-    },
     karma: {
       unit: {configFile: 'tests/karma.config.js', singleRun: singleRunTests }
     },
@@ -98,11 +89,10 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-connect');
   grunt.loadNpmTasks('grunt-contrib-copy');
   grunt.loadNpmTasks('grunt-contrib-watch');
-  grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-karma');
   grunt.loadNpmTasks('grunt-eslint');
   grunt.registerTask('dev', ['watch']);
   grunt.registerTask('build',
-    ['clean', 'jshint', 'eslint', 'concat', 'copy', 'karma']);
+    ['clean', 'eslint', 'concat', 'copy', 'karma']);
   grunt.registerTask('test', ['karma'])
 };
