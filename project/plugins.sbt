@@ -22,3 +22,6 @@ libraryDependencies += "org.vafer" % "jdeb" % "1.8" artifacts (Artifact("jdeb", 
 // Force scala-xml version to resolve conflict between Play's transitive
 // com.typesafe.sbt:sbt-native-packager:1.5.2 and com.github.sbt:sbt-native-packager:1.9.16
 dependencyOverrides += "org.scala-lang.modules" %% "scala-xml" % "2.1.0"
+
+// CVE finding: https://avd.aquasec.com/nvd/2025/cve-2025-12183/
+dependencyOverrides += "org.lz4" % "lz4-java" % "1.8.1"

@@ -17,8 +17,8 @@ rpmLicense := Some("MIT")
 
 rpmUrl := Some("http://github.com/lmenezes/cerebro")
 
-val jacksonVersion         = "2.14.2"
-val jacksonDatabindVersion = "2.14.2"
+val jacksonVersion         = "2.16.1"
+val jacksonDatabindVersion = "2.16.1"
 
 val jacksonOverrides = Seq(
   "com.fasterxml.jackson.core"     % "jackson-core",
