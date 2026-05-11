@@ -1,16 +1,17 @@
 // eslint-disable-next-line no-unused-vars
-function NodeFilter(name, data, master, ingest, coordinating, timestamp) {
+function NodeFilter(name, data, master, ingest, coordinating, warm, timestamp) {
   this.name = name;
   this.data = data;
   this.master = master;
   this.ingest = ingest;
   this.coordinating = coordinating;
+  this.warm = warm;
   this.timestamp = timestamp;
 
   this.clone = function() {
     // eslint-disable-next-line no-unused-vars
     return new NodeFilter(
-        this.name, this.data, this.master, this.ingest, this.coordinating
+        this.name, this.data, this.master, this.ingest, this.coordinating, this.warm
     );
   };
 
@@ -26,13 +27,14 @@ function NodeFilter(name, data, master, ingest, coordinating, timestamp) {
       this.master == other.master &&
       this.ingest == other.ingest &&
       this.coordinating == other.coordinating &&
+      this.warm == other.warm &&
       this.timestamp == other.timestamp
     );
   };
 
   this.isBlank = function() {
     return !this.name &&
-      (this.data && this.master && this.ingest && this.coordinating);
+      (this.data && this.master && this.ingest && this.coordinating && this.warm);
   };
 
   this.matches = function(node) {
@@ -48,7 +50,8 @@ function NodeFilter(name, data, master, ingest, coordinating, timestamp) {
       node.data && this.data ||
       node.master && this.master ||
       node.ingest && this.ingest ||
-      node.coordinating && this.coordinating
+      node.coordinating && this.coordinating ||
+      node.warm && this.warm
     );
   };
 
