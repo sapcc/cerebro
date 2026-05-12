@@ -74,6 +74,8 @@ Debian / systemdSuccessExitStatus += "143"
 Rpm / systemdSuccessExitStatus += "143"
 linuxPackageMappings += packageTemplateMapping(s"/var/lib/${packageName.value}")() withUser((daemonUser in Linux).value) withGroup((daemonGroup in Linux).value)
 
+// Java 11 let it through silently. Java 17 enforces module boundaries strictly — blocks
+// ClassLoader.defineClass access unless explicitly opened.
 Universal / javaOptions ++= Seq(
   "-J--add-opens=java.base/java.lang=ALL-UNNAMED"
 )
