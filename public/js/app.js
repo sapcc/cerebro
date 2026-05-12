@@ -1034,7 +1034,7 @@ angular.module('cerebro').controller('NodesController', ['$scope',
     $scope.sortBy = 'name';
     $scope.reverse = false;
 
-    $scope.filter = new NodeFilter('', true, true, true, true, 0);
+    $scope.filter = new NodeFilter('', true, true, true, true, true, 0);
 
     $scope.$watch(
         function() {
@@ -1114,7 +1114,7 @@ angular.module('cerebro').controller('OverviewController', ['$scope', '$http',
     $scope.shardAllocation = true;
 
     $scope.indices_filter = new IndexFilter('', false, false, true, true, 0);
-    $scope.nodes_filter = new NodeFilter('', true, false, false, false, 0);
+    $scope.nodes_filter = new NodeFilter('', true, false, false, false, true, 0);
 
     $scope.getPageSize = function() {
       return Math.max(Math.round($window.innerWidth / 280), 1);
@@ -2365,18 +2365,19 @@ function IndexFilter(name, closed, special, healthy, asc, timestamp) {
 }
 
 // eslint-disable-next-line no-unused-vars
-function NodeFilter(name, data, master, ingest, coordinating, timestamp) {
+function NodeFilter(name, data, master, ingest, coordinating, warm, timestamp) {
   this.name = name;
   this.data = data;
   this.master = master;
   this.ingest = ingest;
   this.coordinating = coordinating;
+  this.warm = warm;
   this.timestamp = timestamp;
 
   this.clone = function() {
     // eslint-disable-next-line no-unused-vars
     return new NodeFilter(
-        this.name, this.data, this.master, this.ingest, this.coordinating
+        this.name, this.data, this.master, this.ingest, this.coordinating, this.warm
     );
   };
 
@@ -2392,13 +2393,14 @@ function NodeFilter(name, data, master, ingest, coordinating, timestamp) {
       this.master == other.master &&
       this.ingest == other.ingest &&
       this.coordinating == other.coordinating &&
+      this.warm == other.warm &&
       this.timestamp == other.timestamp
     );
   };
 
   this.isBlank = function() {
     return !this.name &&
-      (this.data && this.master && this.ingest && this.coordinating);
+      (this.data && this.master && this.ingest && this.coordinating && this.warm);
   };
 
   this.matches = function(node) {
@@ -2414,7 +2416,8 @@ function NodeFilter(name, data, master, ingest, coordinating, timestamp) {
       node.data && this.data ||
       node.master && this.master ||
       node.ingest && this.ingest ||
-      node.coordinating && this.coordinating
+      node.coordinating && this.coordinating ||
+      node.warm && this.warm
     );
   };
 

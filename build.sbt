@@ -17,8 +17,8 @@ rpmLicense := Some("MIT")
 
 rpmUrl := Some("http://github.com/lmenezes/cerebro")
 
-val jacksonVersion         = "2.14.2"
-val jacksonDatabindVersion = "2.14.2"
+val jacksonVersion         = "2.16.1"
+val jacksonDatabindVersion = "2.16.1"
 
 val jacksonOverrides = Seq(
   "com.fasterxml.jackson.core"     % "jackson-core",
@@ -62,7 +62,7 @@ lazy val root = (project in file(".")).
     buildInfoPackage := "models"
   )
 
-sources in (Compile, doc) := Seq.empty
+Compile / doc / sources := Seq.empty
 
 enablePlugins(JavaServerAppPackaging)
 enablePlugins(SystemdPlugin)
@@ -70,6 +70,12 @@ enablePlugins(SystemdPlugin)
 pipelineStages := Seq(digest, gzip)
 
 serverLoading := Some(ServerLoader.Systemd)
-systemdSuccessExitStatus in Debian += "143"
-systemdSuccessExitStatus in Rpm += "143"
+Debian / systemdSuccessExitStatus += "143"
+Rpm / systemdSuccessExitStatus += "143"
 linuxPackageMappings += packageTemplateMapping(s"/var/lib/${packageName.value}")() withUser((daemonUser in Linux).value) withGroup((daemonGroup in Linux).value)
+
+// Java 11 let it through silently. Java 17 enforces module boundaries strictly — blocks
+// ClassLoader.defineClass access unless explicitly opened.
+Universal / javaOptions ++= Seq(
+  "-J--add-opens=java.base/java.lang=ALL-UNNAMED"
+)

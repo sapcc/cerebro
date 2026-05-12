@@ -29,6 +29,7 @@ object Node extends NodeInfo {
       "data" -> JsBoolean(nodeRoles.data),
       "coordinating" -> JsBoolean(nodeRoles.coordinating),
       "ingest" -> JsBoolean(nodeRoles.ingest),
+      "warm" -> JsBoolean(nodeRoles.warm),
       "heap" -> Json.obj(
         "used" -> (stats \ "jvm" \ "mem" \ "heap_used_in_bytes").as[JsNumber],
         "committed" -> (stats \ "jvm" \ "mem" \ "heap_committed_in_bytes").as[JsNumber],

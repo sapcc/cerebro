@@ -29,7 +29,8 @@ object Node extends NodeInfo {
       "master" -> JsBoolean(roles.master),
       "coordinating" -> JsBoolean(roles.coordinating),
       "ingest" -> JsBoolean(roles.ingest),
-      "data" -> JsBoolean(roles.data)
+      "data" -> JsBoolean(roles.data),
+      "warm" -> JsBoolean(roles.warm)
     )
   }
 

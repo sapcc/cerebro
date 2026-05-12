@@ -2,9 +2,9 @@ package models.commons
 
 import play.api.libs.json.{JsArray, JsString, JsValue}
 
-case class NodeRoles(master: Boolean, data: Boolean, ingest: Boolean) {
+case class NodeRoles(master: Boolean, data: Boolean, ingest: Boolean, warm: Boolean) {
 
-  def coordinating: Boolean = !master && !data && !ingest
+  def coordinating: Boolean = !master && !data && !ingest && !warm
 
 }
 
@@ -23,7 +23,8 @@ object NodeRoles {
         NodeRoles(
           roles.contains(JsString("master")),
           roles.exists(role => dataRoles.contains(role)),
-          roles.contains(JsString("ingest"))
+          roles.contains(JsString("ingest")),
+          roles.contains(JsString("warm"))
         )
 
       case None => // 2.X
@@ -34,7 +35,8 @@ object NodeRoles {
         NodeRoles(
           master = master && !client,
           data = data && !client,
-          ingest = false // 2.x doesnt support ingest
+          ingest = false, // 2.x doesnt support ingest
+          warm = false // 2.x doesnt support warm
         )
     }
   }
