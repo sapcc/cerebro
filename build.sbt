@@ -51,6 +51,9 @@ libraryDependencies ++= jacksonDatabindOverrides ++ jacksonOverrides ++ akkaSeri
   "com.typesafe.akka"        % "akka-http-core_2.13"   % "10.1.15"
 )
 
+// CVE finding: https://avd.aquasec.com/nvd/2025/cve-2025-12183/
+dependencyOverrides += "org.lz4" % "lz4-java" % "1.8.1"
+
 libraryDependencies += filters
 libraryDependencies += ws
 libraryDependencies += guice
@@ -77,5 +80,6 @@ linuxPackageMappings += packageTemplateMapping(s"/var/lib/${packageName.value}")
 // Java 11 let it through silently. Java 17 enforces module boundaries strictly — blocks
 // ClassLoader.defineClass access unless explicitly opened.
 Universal / javaOptions ++= Seq(
-  "-J--add-opens=java.base/java.lang=ALL-UNNAMED"
+  "-J--add-opens=java.base/java.lang=ALL-UNNAMED",
+  "-J--add-opens=java.naming/com.sun.jndi.ldap=ALL-UNNAMED"
 )
