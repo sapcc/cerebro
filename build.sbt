@@ -51,8 +51,10 @@ libraryDependencies ++= jacksonDatabindOverrides ++ jacksonOverrides ++ akkaSeri
   "com.typesafe.akka"        % "akka-http-core_2.13"   % "10.1.15"
 )
 
-// CVE finding: https://avd.aquasec.com/nvd/2025/cve-2025-12183/
+// CVE-2025-12183: Out-of-bounds memory operations in org.lz4:lz4-java, fixed in 1.8.1
 dependencyOverrides += "org.lz4" % "lz4-java" % "1.8.1"
+// CVE-2025-66566: lz4-java info disclosure via insufficient output buffer clearing, fixed in 1.10.2
+dependencyOverrides += "at.yawk.lz4" % "lz4-java" % "1.10.2"
 
 libraryDependencies += filters
 libraryDependencies += ws
