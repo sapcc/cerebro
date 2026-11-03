@@ -2,7 +2,6 @@ package models
 
 import javax.inject.Singleton
 import java.util.NoSuchElementException
-import exceptions.{MissingHostsCredentials}
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
@@ -82,7 +81,7 @@ class HostsImpl @Inject()(config: Configuration, client: WSClient)(implicit syst
       val headersWhitelist = hostConf.getOptional[Seq[String]](path = "headers-whitelist").getOrElse(Seq.empty[String])
       var i = 0
       var attemptedCredentials = List.empty[Option[models.Host]]
-      while (i < 10 && attemptedCredentials.flatten.isEmpty) {
+      while (i < 5 && attemptedCredentials.flatten.isEmpty) {
         attemptedCredentials = (for (failoverAuth <- List("auth", "auth2")) yield {
           log.info(s"Testing credentials provided in block ${failoverAuth}")
           val username = hostConf.getOptional[String](s"$failoverAuth.username").getOrElse("")
@@ -108,9 +107,9 @@ class HostsImpl @Inject()(config: Configuration, client: WSClient)(implicit syst
         log.info(s"Found successful credentials; will use ${okCreds.authentication.get.username}.")
         name -> okCreds
       } catch {
-        case e => 
-        log.error(s"Missing credentials: ${e.getMessage}", throw MissingHostsCredentials(s"None of the provided credentials worked for '${name}', on '${host}'"))
-        name -> Host(host, Some(ESAuth("MISSING_USERNAME","MISSING_PASSWORD")), headersWhitelist)
+        case e =>
+        log.warn(s"None of the provided credentials worked for '${name}' on '${host}'; cerebro will start without auth for this host: ${e.getMessage}")
+        name -> Host(host, None, headersWhitelist)
       }
     }.toMap
     case Failure(_) => Map()
